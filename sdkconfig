@@ -514,6 +514,15 @@ CONFIG_MB_SLAVE_ADDR=1
 # end of Modbus Example Configuration
 
 #
+# Example Configuration
+#
+CONFIG_EXAMPLE_UART_BAUD_RATE=115200
+CONFIG_EXAMPLE_UART_RXD=5
+CONFIG_EXAMPLE_UART_TXD=4
+CONFIG_EXAMPLE_TASK_STACK_SIZE=3072
+# end of Example Configuration
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
