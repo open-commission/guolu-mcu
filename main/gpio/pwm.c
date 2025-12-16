@@ -108,20 +108,28 @@ esp_err_t pwm_update_freq(ledc_mode_t speed_mode, ledc_timer_t timer_num, uint32
 /**
  * @brief 启动PWM渐变效果
  * 
+ * @param speed_mode 速度模式
  * @param channel LEDC通道
  * @param duty 目标占空比
- * @param step_num 渐变步数
- * @param duty_direction 渐变方向 (0: 减小, 1: 增加)
+ * @param time_ms 渐变时间(毫秒)
  * @return esp_err_t ESP-IDF错误码
  */
-esp_err_t pwm_start_fade(ledc_channel_t channel, uint32_t duty, uint32_t step_num, uint32_t duty_direction)
+esp_err_t pwm_start_fade(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t duty, uint32_t time_ms)
 {
-    esp_err_t err = ledc_fade_start(LEDC_LOW_SPEED_MODE, channel, LEDC_FADE_NO_WAIT);
+    // 配置淡入淡出效果
+    esp_err_t err = ledc_set_fade_with_time(speed_mode, channel, duty, time_ms);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set fade for channel %d", channel);
+        return err;
+    }
+    
+    // 启动淡入淡出效果
+    err = ledc_fade_start(speed_mode, channel, LEDC_FADE_WAIT_DONE);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start fade for channel %d", channel);
         return err;
     }
     
-    ESP_LOGD(TAG, "Started fade for channel %d", channel);
+    ESP_LOGD(TAG, "Started fade for channel %d to duty %d in %d ms", channel, duty, time_ms);
     return ESP_OK;
 }

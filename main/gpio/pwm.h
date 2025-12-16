@@ -10,14 +10,15 @@
 /**
  * @brief PWM配置结构体
  */
-typedef struct {
-    ledc_timer_t timer_num;      /*!< LEDC定时器编号 */
-    ledc_mode_t speed_mode;      /*!< LEDC速度模式 */
-    uint32_t frequency;          /*!< PWM频率 */
+typedef struct
+{
+    ledc_timer_t timer_num; /*!< LEDC定时器编号 */
+    ledc_mode_t speed_mode; /*!< LEDC速度模式 */
+    uint32_t frequency; /*!< PWM频率 */
     ledc_timer_bit_t duty_resolution; /*!< 占空比分辨率 */
-    ledc_channel_t channel;       /*!< LEDC通道编号 */
-    gpio_num_t gpio_num;         /*!< GPIO编号 */
-    uint32_t duty;               /*!< 初始占空比 */
+    ledc_channel_t channel; /*!< LEDC通道编号 */
+    gpio_num_t gpio_num; /*!< GPIO编号 */
+    uint32_t duty; /*!< 初始占空比 */
 } pwm_config_t;
 
 /**
@@ -57,6 +58,6 @@ esp_err_t pwm_update_freq(ledc_mode_t speed_mode, ledc_timer_t timer_num, uint32
  * @param duty_direction 渐变方向 (0: 减小, 1: 增加)
  * @return esp_err_t ESP-IDF错误码
  */
-esp_err_t pwm_start_fade(ledc_channel_t channel, uint32_t duty, uint32_t step_num, uint32_t duty_direction);
+esp_err_t pwm_start_fade(ledc_mode_t speed_mode, ledc_channel_t channel, uint32_t duty, uint32_t time_ms);
 
 #endif //WASTERWATER_MCU_PWM_H
