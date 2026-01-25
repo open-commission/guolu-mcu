@@ -1,8 +1,0 @@
-//
-// Created by nebula on 2026/1/14.
-//
-
-#ifndef WASTERWATER_MCU_UPLOAD_MASTER_H
-#define WASTERWATER_MCU_UPLOAD_MASTER_H
-
-#endif //WASTERWATER_MCU_UPLOAD_MASTER_H

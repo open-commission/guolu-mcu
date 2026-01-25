@@ -16,7 +16,7 @@
 
 #include "adc.h"
 #include "esp_log.h"
-#include "global_vars.h"
+#include "rtu.h"
 #include "uart.h"
 
 static const char* TAG = "CHONG_SHUA";
@@ -24,12 +24,8 @@ static const char* TAG = "CHONG_SHUA";
 // ★ adc_tool_start 会在后台任务中不断调用这个函数
 void adc_value_callback(int raw, int voltage_mv)
 {
-    tds_var = raw;
-    ESP_LOGI("ADC_CALLBACK", "RAW=%d, V=%d mV", raw, voltage_mv);
-}
-
-void set_liusu_sudu(int per)
-{
+    float voltage = voltage_mv / 1000.0;
+    state.ph_var = -11.37774f * voltage + 21.677f;
 }
 
 void get_ph_var()
@@ -39,7 +35,7 @@ void get_ph_var()
     // ============================
     esp_err_t ret = adc_tool_start(
         ADC_UNIT_1,
-        ADC_CHANNEL_3,
+        ADC_CHANNEL_2,
         ADC_ATTEN_DB_12,
         adc_value_callback // ★ 用户回调函数
     );

@@ -48,50 +48,25 @@
                                                 | MB_EVENT_COILS_WR)
 #define MB_READ_WRITE_MASK                  (MB_READ_MASK | MB_WRITE_MASK)
 
-static const char *TAG = "SLAVE_TEST";
+static const char* TAG = "SLAVE_TEST";
 
 static portMUX_TYPE param_lock = portMUX_INITIALIZER_UNLOCKED;
+
+state_t state;
 
 // 将寄存器值设置为已知状态
 static void setup_reg_data(void)
 {
     // 定义参数的初始状态
-    discrete_reg_params.discrete_input0 = 1;
-    discrete_reg_params.discrete_input1 = 0;
-    discrete_reg_params.discrete_input2 = 1;
-    discrete_reg_params.discrete_input3 = 0;
-    discrete_reg_params.discrete_input4 = 1;
-    discrete_reg_params.discrete_input5 = 0;
-    discrete_reg_params.discrete_input6 = 1;
-    discrete_reg_params.discrete_input7 = 0;
-
     holding_reg_params.holding_data0 = 1.34;
     holding_reg_params.holding_data1 = 2.56;
     holding_reg_params.holding_data2 = 3.78;
     holding_reg_params.holding_data3 = 4.90;
+    holding_reg_params.holding_data4 = 5.12;
 
-    holding_reg_params.holding_data4 = 5.67;
-    holding_reg_params.holding_data5 = 6.78;
-    holding_reg_params.holding_data6 = 7.79;
-    holding_reg_params.holding_data7 = 8.80;
-
-    coil_reg_params.coils_port0 = 0x55;
-    coil_reg_params.coils_port1 = 0xAA;
-
-    input_reg_params.input_data0 = 1.12;
-    input_reg_params.input_data1 = 2.34;
-    input_reg_params.input_data2 = 3.56;
-    input_reg_params.input_data3 = 4.78;
-
-    input_reg_params.input_data4 = 1.12;
-    input_reg_params.input_data5 = 2.34;
-    input_reg_params.input_data6 = 3.56;
-    input_reg_params.input_data7 = 4.78;
+    coil_reg_params.coils_port0 = 0x01;
 }
 
-// Modbus 从机的应用示例。它基于 freemodbus 协议栈。
-// 有关分配的 Modbus 参数的更多信息，请参见 deviceparams.h 文件。
-// 这些参数可以从主应用程序访问，也可以由外部 Modbus 主机更改。
 void start_modbus(void)
 {
     mb_param_info_t reg_info; // 保存 Modbus 寄存器访问信息
@@ -133,30 +108,11 @@ void start_modbus(void)
     reg_area.size = sizeof(float) << 2; // 设置寄存器存储实例的大小
     ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
 
-    // 初始化输入寄存器区域
-    reg_area.type = MB_PARAM_INPUT;
-    reg_area.start_offset = MB_REG_INPUT_START_AREA0;
-    reg_area.address = (void*)&input_reg_params.input_data0;
-    reg_area.size = sizeof(float) << 2;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-    reg_area.type = MB_PARAM_INPUT;
-    reg_area.start_offset = MB_REG_INPUT_START_AREA1;
-    reg_area.address = (void*)&input_reg_params.input_data4;
-    reg_area.size = sizeof(float) << 2;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
     // 初始化线圈寄存器区域
     reg_area.type = MB_PARAM_COIL;
     reg_area.start_offset = MB_REG_COILS_START;
     reg_area.address = (void*)&coil_reg_params;
     reg_area.size = sizeof(coil_reg_params);
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    // 初始化离散输入寄存器区域
-    reg_area.type = MB_PARAM_DISCRETE;
-    reg_area.start_offset = MB_REG_DISCRETE_INPUT_START;
-    reg_area.address = (void*)&discrete_reg_params;
-    reg_area.size = sizeof(discrete_reg_params);
     ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
 
     setup_reg_data(); // 将值设置为已知状态
@@ -166,10 +122,10 @@ void start_modbus(void)
 
     // 设置 UART 引脚号
     ESP_ERROR_CHECK(uart_set_pin(MB_PORT_NUM, CONFIG_MB_UART_TXD,
-                            CONFIG_MB_UART_RXD, CONFIG_MB_UART_RTS,
-                            UART_PIN_NO_CHANGE));
+        CONFIG_MB_UART_RXD, UART_PIN_NO_CHANGE,
+        UART_PIN_NO_CHANGE));
 
-    // 将 UART 驱动模式设置为半双工
+    // 将 UART 驱动模式设置为全双工
     ESP_ERROR_CHECK(uart_set_mode(MB_PORT_NUM, UART_MODE_UART));
 
     ESP_LOGI(TAG, "Modbus slave stack initialized.");
@@ -177,57 +133,56 @@ void start_modbus(void)
 
     // 当参数 holdingRegParams.dataChan0 每次访问周期递增
     // 达到 CHAN_DATA_MAX_VAL 值时，下面的循环将终止。
-    for(;holding_reg_params.holding_data0 < MB_CHAN_DATA_MAX_VAL;) {
+    for (; holding_reg_params.holding_data0 < MB_CHAN_DATA_MAX_VAL;)
+    {
         // 检查 Modbus 主机的读/写事件
         (void)mbc_slave_check_event(MB_READ_WRITE_MASK);
         ESP_ERROR_CHECK_WITHOUT_ABORT(mbc_slave_get_param_info(&reg_info, MB_PAR_INFO_GET_TOUT));
         const char* rw_str = (reg_info.type & MB_READ_MASK) ? "READ" : "WRITE";
         // 过滤事件并相应地处理它们
-        if(reg_info.type & (MB_EVENT_HOLDING_REG_WR | MB_EVENT_HOLDING_REG_RD)) {
-            // 从参数队列获取参数信息
+        if (reg_info.type & (MB_EVENT_HOLDING_REG_WR | MB_EVENT_HOLDING_REG_RD))
+        {
+            // 仅保留日志打印
             ESP_LOGI(TAG, "HOLDING %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32 ", SIZE:%u",
-                            rw_str,
-                            reg_info.time_stamp,
-                            (unsigned)reg_info.mb_offset,
-                            (unsigned)reg_info.type,
-                            (uint32_t)reg_info.address,
-                            (unsigned)reg_info.size);
-            if (reg_info.address == (uint8_t*)&holding_reg_params.holding_data0)
-            {
-                portENTER_CRITICAL(&param_lock);
-                holding_reg_params.holding_data0 += MB_CHAN_DATA_OFFSET;
-                if (holding_reg_params.holding_data0 >= (MB_CHAN_DATA_MAX_VAL - MB_CHAN_DATA_OFFSET)) {
-                    coil_reg_params.coils_port1 = 0xFF;
-                }
-                portEXIT_CRITICAL(&param_lock);
-            }
-        } else if (reg_info.type & MB_EVENT_INPUT_REG_RD) {
-            ESP_LOGI(TAG, "INPUT READ (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32 ", SIZE:%u",
-                            reg_info.time_stamp,
-                            (unsigned)reg_info.mb_offset,
-                            (unsigned)reg_info.type,
-                            (uint32_t)reg_info.address,
-                            (unsigned)reg_info.size);
-        } else if (reg_info.type & MB_EVENT_DISCRETE_RD) {
-            ESP_LOGI(TAG, "DISCRETE READ (%" PRIu32 " us): ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32 ", SIZE:%u",
-                            reg_info.time_stamp,
-                            (unsigned)reg_info.mb_offset,
-                            (unsigned)reg_info.type,
-                            (uint32_t)reg_info.address,
-                            (unsigned)reg_info.size);
-        } else if (reg_info.type & (MB_EVENT_COILS_RD | MB_EVENT_COILS_WR)) {
+                     rw_str,
+                     reg_info.time_stamp,
+                     (unsigned)reg_info.mb_offset,
+                     (unsigned)reg_info.type,
+                     (uint32_t)reg_info.address,
+                     (unsigned)reg_info.size);
+        }
+        else if (reg_info.type & (MB_EVENT_COILS_RD | MB_EVENT_COILS_WR))
+        {
+            // 仅保留日志打印
             ESP_LOGI(TAG, "COILS %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32 ", SIZE:%u",
-                            rw_str,
-                            reg_info.time_stamp,
-                            (unsigned)reg_info.mb_offset,
-                            (unsigned)reg_info.type,
-                            (uint32_t)reg_info.address,
-                            (unsigned)reg_info.size);
-            if (coil_reg_params.coils_port1 == 0xFF) break;
+                     rw_str,
+                     reg_info.time_stamp,
+                     (unsigned)reg_info.mb_offset,
+                     (unsigned)reg_info.type,
+                     (uint32_t)reg_info.address,
+                     (unsigned)reg_info.size);
         }
     }
     // 报警时销毁 Modbus 控制器
-    ESP_LOGI(TAG,"Modbus controller destroyed.");
+    ESP_LOGI(TAG, "Modbus controller destroyed.");
     vTaskDelay(100);
     ESP_ERROR_CHECK(mbc_slave_destroy());
+}
+
+void modbus_task(void* arg)
+{
+    setup_reg_data();
+    start_modbus();
+}
+
+
+void set_reg_state()
+{
+    holding_reg_params.holding_data0 = state.liusu_var;
+    holding_reg_params.holding_data1 = state.tds_var;
+    holding_reg_params.holding_data2 = state.ph_var;
+    holding_reg_params.holding_data3 = state.rudongbeng_var;
+    holding_reg_params.holding_data4 = state.chongshua_var;
+
+    coil_reg_params.coils_port0 = state.activity_state;
 }

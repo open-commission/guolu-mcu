@@ -1,0 +1,1 @@
+mbpoll -0 -a 1 -b 115200 -P none -t 4:float -r 0 -c 5 /dev/ttyUSB0

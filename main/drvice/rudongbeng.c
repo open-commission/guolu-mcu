@@ -7,8 +7,7 @@
 #include "freertos/FreeRTOS.h"
 
 #include "esp_log.h"
-#include "global_vars.h"
-#include "freertos/projdefs.h"
+#include "rtu.h"
 #include "gpio/pwm.h"
 
 static const char* TAG = "RUDONGBENG";
@@ -16,7 +15,7 @@ static const char* TAG = "RUDONGBENG";
 // ============================
 // 蠕动泵PWM控制
 // ============================
-#define RUDONGBENG_PWM_GPIO_NUM           8  // 使用GPIO 8控制蠕动泵
+#define RUDONGBENG_PWM_GPIO_NUM           10  // 使用GPIO 8控制蠕动泵
 #define RUDONGBENG_PWM_FREQUENCY          20000  // 20kHz PWM频率
 #define RUDONGBENG_PWM_DUTY_RESOLUTION    LEDC_TIMER_10_BIT  // 10位分辨率 (0-1023)
 #define RUDONGBENG_PWM_MAX_DUTY           1023   // 最大占空比值 (2^10 - 1)
@@ -75,5 +74,5 @@ void set_rudongbeng_sudo(int per)
 
     ESP_LOGI(TAG, "Set peristaltic pump speed to %d%%, calculated duty value: %d", per, calculated_duty);
 
-    rudongbeng_val = per;
+    state.rudongbeng_var = per;
 }

@@ -5,7 +5,8 @@
 #ifndef WASTERWATER_MCU_LIUSU_H
 #define WASTERWATER_MCU_LIUSU_H
 
-void set_liusu_sudu(int per);
-uint32_t get_liusu_var();
+void liusu_task(void* arg);
+void liusu_init(void);
+void set_activity(int activity);
 
 #endif //WASTERWATER_MCU_LIUSU_H
