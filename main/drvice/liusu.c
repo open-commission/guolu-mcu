@@ -81,7 +81,7 @@ void liusu_init(void)
     // 建议增加一个简单的 log 确认初始化成功
     ESP_LOGI(TAG, "GPIO %d 初始化成功 (轮询模式)", FLOW_SENSOR_GPIO);
 
-    xTaskCreate(liusu_polling_task, "liusu_task", 4096, NULL, 10, NULL);
+    // xTaskCreate(liusu_polling_task, "liusu_task", 4096, NULL, 10, NULL);
 }
 
 void set_activity(int activity)

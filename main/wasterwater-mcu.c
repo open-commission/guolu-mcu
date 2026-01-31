@@ -17,20 +17,7 @@
 //     uart_send_data(UART_NUM_0, data, length);
 // }
 //
-// // ============================
-// // ADC 回调（新版！！！）
-// // ============================
-// // ★ adc_tool_start 会在后台任务中不断调用这个函数
-// void adc_value_callback(int raw, int voltage_mv)
-// {
-//     char buffer[64];
-//     int len = snprintf(buffer, sizeof(buffer),
-//                        "ADC RAW: %d, Voltage: %d mV\r\n",
-//                        raw, voltage_mv);
-//
-//     uart_send_data(UART_NUM_0, (const uint8_t*)buffer, len);
-//     ESP_LOGI("ADC_CALLBACK", "RAW=%d, V=%d mV", raw, voltage_mv);
-// }
+
 //
 // // ============================
 // // PWM控制任务
@@ -107,23 +94,7 @@
 //         ESP_LOGI(TAG, "UART0 init OK");
 //     }
 //
-//     // ============================
-//     // 启动 ADC（★ 新的函数）
-//     // ============================
-//     ret = adc_tool_start(
-//             ADC_UNIT_1,
-//             ADC_CHANNEL_3,
-//             ADC_ATTEN_DB_12,
-//             adc_value_callback   // ★ 用户回调函数
-//     );
-//
-//     if (ret != ESP_OK)
-//     {
-//         ESP_LOGE(TAG, "Failed to start ADC tool: %s", esp_err_to_name(ret));
-//         return;
-//     }
-//
-//     ESP_LOGI(TAG, "ADC tool started successfully");
+
 //
 //     // ============================
 //     // 初始化 PWM 输出
@@ -288,10 +259,17 @@
 #include "rtu.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
+#include "water_task.h"
 
 void app_main(void)
 {
-    xTaskCreate(modbus_task, "modbus_task", 4096, NULL, 5, NULL);
+    // xTaskCreate(modbus_task, "modbus_task", 4096, NULL, 5, NULL);
+    xTaskCreate(tds_task, "tds_task", 4096, NULL, 5, NULL);
+    xTaskCreate(ph_task, "ph_task", 4096, NULL, 5, NULL);
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    while (1)
+    {
+        ESP_LOGI("water_task", "water_task");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 }

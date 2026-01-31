@@ -5,6 +5,29 @@
 
 static const char *TAG = "ADC_TOOL";
 
+static adc_oneshot_unit_handle_t g_adc_handle = NULL;
+static bool g_adc_inited = false;
+
+static esp_err_t adc_tool_init_unit_once(adc_unit_t unit)
+{
+    if (g_adc_inited) {
+        return ESP_OK;
+    }
+
+    adc_oneshot_unit_init_cfg_t init_cfg = {
+        .unit_id = unit,
+    };
+
+    esp_err_t err = adc_oneshot_new_unit(&init_cfg, &g_adc_handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    g_adc_inited = true;
+    return ESP_OK;
+}
+
+
 typedef struct {
     adc_unit_t unit;
     adc_channel_t channel;
@@ -82,25 +105,34 @@ esp_err_t adc_tool_start(
     cfg->cb = callback;
     cfg->adc_handle = NULL;
     cfg->cali_handle = NULL;
+    cfg->calibrated = false;
 
-    ESP_ERROR_CHECK(adc_tool_init_unit(unit, &cfg->adc_handle));
+    /* ✅ 只初始化一次 ADC unit */
+    esp_err_t err = adc_tool_init_unit_once(unit);
+    if (err != ESP_OK) {
+        free(cfg);
+        return err;
+    }
 
-    /* ADC channel config */
+    cfg->adc_handle = g_adc_handle;
+
+    /* ✅ 每个 channel 单独配置 */
     adc_oneshot_chan_cfg_t chan_cfg = {
-            .atten = atten,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
     ESP_ERROR_CHECK(adc_oneshot_config_channel(cfg->adc_handle, channel, &chan_cfg));
 
-    /* Calibration */
-    cfg->calibrated = adc_tool_calibration_init(unit, channel, atten, &cfg->cali_handle);
+    /* 校准（channel 级别，允许多次） */
+    cfg->calibrated = adc_tool_calibration_init(
+            unit, channel, atten, &cfg->cali_handle);
 
-    /* Create task */
     xTaskCreate(adc_read_task, "adc_read_task", 4096, cfg, 5, NULL);
 
     return ESP_OK;
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*                               ADC DEINIT                                   */

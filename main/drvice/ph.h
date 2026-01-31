@@ -5,6 +5,6 @@
 #ifndef WASTERWATER_MCU_PH_H
 #define WASTERWATER_MCU_PH_H
 
-void get_ph_var();
+void ph_value_callback(int raw, int voltage_mv);
 
 #endif //WASTERWATER_MCU_PH_H

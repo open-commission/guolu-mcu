@@ -5,6 +5,6 @@
 #ifndef WASTERWATER_MCU_TDS_H
 #define WASTERWATER_MCU_TDS_H
 
-void get_tds_var();
+void tds_value_callback(int raw, int voltage_mv);
 
 #endif //WASTERWATER_MCU_TDS_H
