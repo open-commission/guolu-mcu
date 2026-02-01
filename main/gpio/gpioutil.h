@@ -14,7 +14,7 @@
  * @param mode GPIO模式（输入/输出）
  * @return esp_err_t ESP-IDF错误码
  */
-esp_err_t gpio_init(gpio_num_t gpio_num, gpio_mode_t mode);
+esp_err_t gpio_init_s(gpio_num_t gpio_num, gpio_mode_t mode);
 
 /**
  * @brief 设置GPIO输出电平
@@ -23,7 +23,7 @@ esp_err_t gpio_init(gpio_num_t gpio_num, gpio_mode_t mode);
  * @param level 电平状态（0或1）
  * @return esp_err_t ESP-IDF错误码
  */
-esp_err_t gpio_set_level(gpio_num_t gpio_num, uint32_t level);
+esp_err_t gpio_set_level_s(gpio_num_t gpio_num, uint32_t level);
 
 /**
  * @brief 读取GPIO输入电平
@@ -31,7 +31,7 @@ esp_err_t gpio_set_level(gpio_num_t gpio_num, uint32_t level);
  * @param gpio_num GPIO编号
  * @return int 电平状态（0或1）
  */
-int gpio_get_level(gpio_num_t gpio_num);
+int gpio_get_level_s(gpio_num_t gpio_num);
 
 /**
  * @brief 切换GPIO输出电平状态
@@ -39,6 +39,6 @@ int gpio_get_level(gpio_num_t gpio_num);
  * @param gpio_num GPIO编号
  * @return int 当前电平状态
  */
-int gpio_toggle_level(gpio_num_t gpio_num);
+int gpio_toggle_level_s(gpio_num_t gpio_num);
 
 #endif //WASTERWATER_MCU_GPIO_H

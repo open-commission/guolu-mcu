@@ -1,6 +1,6 @@
 idf_component_register(
         SRCS "wasterwater-mcu.c" "modbus/rtu.c" "adc/adc.c"
-        "gpio/gpio.c" "gpio/pwm.c" "uart/uart.c"
+        "gpio/gpioutil.c" "gpio/pwm.c" "uart/uart.c"
         "drvice/chongshua.c" "drvice/tds.c" "drvice/liusu.c"
         "drvice/ph.c" "drvice/rudongbeng.c" "drvice/tds.c"
         "task/water_task.c"

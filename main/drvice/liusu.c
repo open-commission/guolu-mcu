@@ -1,87 +1,110 @@
 #include "liusu.h"
 #include "esp_log.h"
-#include "driver/gpio.h"
 #include "esp_timer.h"
-#include "gpio.h"
+#include "gpioutil.h"
+#include "driver/pcnt.h"
 #include "rtu.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #define FLOW_SENSOR_GPIO    GPIO_NUM_6
-// YF-S201 公式: F(Hz) = 7.5 * Q(L/min) -> Q = F / 7.5
-#define YF_S201_FACTOR      7.5f
+
+#define PCNT_UNIT_USED     PCNT_UNIT_0
+#define PCNT_CHANNEL_USED  PCNT_CHANNEL_0
+
+// YF-S201 公式
+#define YF_S201_FACTOR     7.5f
 
 static const char* TAG = "liusu";
+
 static uint32_t total_pulses = 0;
+
+static void flow_pcnt_init(void)
+{
+    pcnt_config_t pcnt_config = {
+        .pulse_gpio_num = 6,
+        .ctrl_gpio_num  = PCNT_PIN_NOT_USED,
+
+        .channel        = PCNT_CHANNEL_USED,
+        .unit           = PCNT_UNIT_USED,
+
+        // 上升沿 +1，下降沿不计
+        .pos_mode       = PCNT_COUNT_INC,
+        .neg_mode       = PCNT_COUNT_DIS,
+
+        .lctrl_mode     = PCNT_MODE_KEEP,
+        .hctrl_mode     = PCNT_MODE_KEEP,
+
+        .counter_h_lim  = 32767,
+        .counter_l_lim  = 0,
+    };
+
+    ESP_ERROR_CHECK(pcnt_unit_config(&pcnt_config));
+
+    // 滤波：防止抖动（单位 APB 时钟周期）
+    // 80MHz / 1024 ≈ 78kHz -> 足够流量计用
+    pcnt_set_filter_value(PCNT_UNIT_USED, 1024);
+    pcnt_filter_enable(PCNT_UNIT_USED);
+
+    pcnt_counter_pause(PCNT_UNIT_USED);
+    pcnt_counter_clear(PCNT_UNIT_USED);
+    pcnt_counter_resume(PCNT_UNIT_USED);
+
+    ESP_LOGI(TAG, "PCNT 初始化完成 (GPIO %d)", 6);
+}
 
 void liusu_task(void* arg)
 {
-    int last_level = 0;
-    uint32_t pulses_in_sec = 0;
+    int16_t pcnt_count = 0;
     int64_t last_report_time = esp_timer_get_time();
 
-    ESP_LOGI(TAG, "流量计轮询任务启动...");
+    ESP_LOGI(TAG, "流量计 PCNT 任务启动...");
 
     while (1)
     {
-        // 1. 读取当前电平
-        int current_level = gpio_get_level(FLOW_SENSOR_GPIO);
-
-        // 2. 检测上升沿 (从 0 变 1)
-        if (last_level == 0 && current_level == 1)
-        {
-            pulses_in_sec++;
-            total_pulses++;
-        }
-        last_level = current_level;
-
-        // 3. 每隔 1 秒进行换算
         int64_t now = esp_timer_get_time();
-        if (now - last_report_time >= 1000000)
-        {
-            /**
-             * 换算逻辑：
-             * pulses_in_sec 实际上就是频率 Hz (每秒脉冲数)
-             * flow_l_min = Hz / 7.5 (单位: L/min)
-             * 如果需要换算成 升/小时 (L/h)，则再乘以 60
-             */
-            float flow_l_min = (float)pulses_in_sec / YF_S201_FACTOR;
 
-            // --- 存入 state 结构体 ---
-            // 确保 state.liusu_var 是 float 类型，以便保留小数精度
+        if (now - last_report_time >= 1000000)   // 1 秒
+        {
+            // 读取并清零 PCNT
+            pcnt_get_counter_value(PCNT_UNIT_USED, &pcnt_count);
+            pcnt_counter_clear(PCNT_UNIT_USED);
+
+            total_pulses += pcnt_count;
+
+            /**
+             * pulses_in_sec == Hz
+             * flow_l_min = Hz / 7.5
+             */
+            float flow_l_min = (float)pcnt_count / YF_S201_FACTOR;
+
             state.liusu_var = flow_l_min;
 
-            // 如果你还需要累计总量（单位：升），可以取消下面两行的注释：
-            // static float total_liters = 0;
-            // total_liters += (flow_l_min / 60.0f); // 每一秒累加这一秒流过的升数
-            // state.total_flow = total_liters;
+            ESP_LOGI(TAG,
+                     "实时流量: %.2f L/min, 本秒脉冲: %d, 总脉冲: %ld",
+                     flow_l_min,
+                     pcnt_count,
+                     total_pulses);
 
-            ESP_LOGI(TAG, "实时流量: %.2f L/min, 总脉冲: %ld", flow_l_min, total_pulses);
-
-            pulses_in_sec = 0;
             last_report_time = now;
         }
 
-        // 1ms 轮询一次。注意：如果你的 FreeRTOS Tick 不是 1000Hz，
-        // 这里可能会变成延时多个 ms。确保 menuconfig 中 Tick Rate 是 1000。
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
 void liusu_init(void)
 {
-    gpio_config_t io_conf = {
-        .mode = GPIO_MODE_INPUT,
-        .pin_bit_mask = (1ULL << FLOW_SENSOR_GPIO),
-        .pull_up_en = 1, // 必须开启上拉，因为 YF-S201 内部通常是开漏输出
-        .pull_down_en = 0,
-        .intr_type = GPIO_INTR_DISABLE, // 轮询模式关闭中断
-    };
-    gpio_config(&io_conf);
+    // GPIO 只需要输入即可
+    gpio_init_s(FLOW_SENSOR_GPIO, GPIO_MODE_INPUT);
 
-    // 建议增加一个简单的 log 确认初始化成功
-    ESP_LOGI(TAG, "GPIO %d 初始化成功 (轮询模式)", FLOW_SENSOR_GPIO);
+    // ⚠️ 强烈建议外部 4.7k~10k 上拉到 3.3V
+    gpio_pullup_en(FLOW_SENSOR_GPIO);
+    gpio_pulldown_dis(FLOW_SENSOR_GPIO);
 
-    // xTaskCreate(liusu_polling_task, "liusu_task", 4096, NULL, 10, NULL);
+    flow_pcnt_init();
+
+    ESP_LOGI(TAG, "流量计初始化完成 (PCNT 模式)");
 }
 
 void set_activity(int activity)
