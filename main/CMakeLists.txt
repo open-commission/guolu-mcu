@@ -7,3 +7,4 @@ idf_component_register(
         INCLUDE_DIRS "." "modbus" "adc" "gpio" "uart" "drvice" "task"
         PRIV_REQUIRES esp_adc esp_driver_uart esp_driver_gpio driver
 )
+
